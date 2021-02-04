@@ -1,13 +1,18 @@
-Assume two machines: *editor* and *builder*. Acme/Edwood runs on *editor*.
-Compiles happen on *builder*. This arrangement requires a mechanism
-to maintain the source trees of the two machines in sync.
+Assume two machines: 
 
-However, a general purpose mechanism is not needed because Acme/Edwood
-can tell me whenever *editor* mutates the files. So, we something that operates
+* *editor*
+* *builder*.
+
+Acme/Edwood runs on
+*editor*. Compiles happen on *builder*. This arrangement requires a
+mechanism to maintain the source trees of the two machines in sync.
+
+We do not require a general purpose mechanism like a filesystem because Acme/Edwood
+can tell us whenever *editor* mutates the files. So, instead have something that operates
 like this:
 
 * one of *editor* or *builder* has the canonical source tree (i.e. performs
-source code control action
+source code control action)
 
 * Call the machine
 containing the true source version (i.e. where source control runs) the *host* and
@@ -25,8 +30,9 @@ that *host* has the true version of the source.)
 to the *builder*.
 
 The initial implementation can use `rsync` to do the bulk-push operation. However
-`rsync` is not the most efficient. The *host* is truth. Thanks to `slurp`, all edits
-have been propagated to from to the *host*. So: bulk-push can asume that that
+`rsync` is not the most efficient. The *host* is truth. Either through `slurp` or
+the *editor*'s direct saving of changes, all edits
+have reached the *host*. So: bulk-push can asume that 
 the state of the *client* is exactly what was written by the bulk-push with the addition
 of any changes that have since been `slurp`-ed. Asusme that the `slurp`-ed changes
 are small. In this case: if bulk-push records what was previously pushed, it can
