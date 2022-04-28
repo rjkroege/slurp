@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
-	"fmt"
-	"strings"
 	"path/filepath"
-	"io/ioutil"
+	"strings"
 
 	"9fans.net/go/acme"
 )
@@ -40,16 +40,15 @@ func main() {
 	for {
 		ev, err := logreader.Read()
 		if err != nil {
-			fmt.Println("can't read acme log", err )
+			fmt.Println("can't read acme log", err)
 			os.Exit(-1)
 		}
 
 		// log.Println(ev)
 
 		if ev.Op == "put" && strings.HasPrefix(ev.Name, edwoodprefix) {
-			// I could put this in a goroutine but am a bit worried that
-			// Edwood might not be thrilled with this.
-			copyEdwoodToRemote(ev, edwoodprefix, remoteprefix)
+			// I am worried that Edwood will have trouble with this but have a go.
+			go copyEdwoodToRemote(ev, edwoodprefix, remoteprefix)
 		}
 	}
 }
@@ -66,17 +65,22 @@ func copyEdwoodToRemote(ev acme.LogEvent, edwoodprefix, remoteprefix string) {
 	buffercontents, err := w.ReadAll("body")
 	if err != nil {
 		fmt.Printf("can't read body of %s: %v", ev.Name, err)
-		os.Exit(-1)
+		return
 	}
 
 	relpath := strings.TrimPrefix(ev.Name, edwoodprefix)
 	remotepath := filepath.Join(remoteprefix, relpath)
 
+	dir := filepath.Dir(remotepath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Printf("can't make a dir for file %q: %v", dir, err)
+		return
+	}
+
 	if err := ioutil.WriteFile(remotepath, buffercontents, 0644); err != nil {
 		acme.Errf("can't write remote %q: %v", remotepath, err)
 		if err := w.Ctl("dirty"); err != nil {
 			fmt.Printf("can't retry %q: %v", ev.Name, err)
-			os.Exit(-1)
 		}
 	}
 }
