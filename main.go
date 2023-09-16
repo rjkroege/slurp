@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"net"
+	"time"
 
 	"9fans.net/go/acme"
 )
@@ -37,6 +39,13 @@ func main() {
 		os.Exit(-1)
 	}
 
+	ender, err := net.Dial("unix", "/tmp/ns.root.:0/sessionender")
+	if err != nil {
+		fmt.Println("can't connect to sessionender. oh well:", err)
+		ender = nil
+	}
+	lastwritten := time.Now()
+
 	for {
 		ev, err := logreader.Read()
 		if err != nil {
@@ -49,6 +58,8 @@ func main() {
 		if ev.Op == "put" && strings.HasPrefix(ev.Name, edwoodprefix) {
 			// I am worried that Edwood will have trouble with this but have a go.
 			go copyEdwoodToRemote(ev, edwoodprefix, remoteprefix)
+
+			lastwritten = extendsessionender(ender, lastwritten)
 		}
 	}
 }
@@ -83,4 +94,24 @@ func copyEdwoodToRemote(ev acme.LogEvent, edwoodprefix, remoteprefix string) {
 			fmt.Printf("can't retry %q: %v", ev.Name, err)
 		}
 	}
+}
+
+// extendsessionender tells sessionender to defer shutdown.
+func extendsessionender(ender net.Conn, lasttime time.Time) time.Time {
+	// Without an ender, can't do anything so just skip and continue.
+	if ender == nil {
+		return lasttime
+	}
+
+	// Don't pester sessionender too often.
+	now := time.Now()
+	if now.Sub(lasttime) < 15 * time.Second {
+		return lasttime
+	}
+
+	if _, err := ender.Write([]byte("helo")); err != nil {
+		fmt.Println("can't write to sessionender? shucks:", err)
+		// Should be lasttime or now returned here. Assume now?
+	}
+	return now
 }

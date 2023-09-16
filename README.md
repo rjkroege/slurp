@@ -49,3 +49,6 @@ I can implement a faster bulk-push by reusing chunks of Kopia:
 * index of what's shoved to the remote already (indexed by the hash)
 * special "remote" that receives and writes the diffs
 * if I code this right, it would even support files that mark what should be ignored.
+
+# Status
+I need to make this program `cpu` aware. I wrote a [[Replacing-Slurp.md]] note about this.
